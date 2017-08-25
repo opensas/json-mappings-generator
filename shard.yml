@@ -1,0 +1,9 @@
+name: json-mappings-generator
+version: 0.1.0
+
+authors:
+  - opensas <opensas@gmail.com>
+
+crystal: 0.23.1
+
+license: MIT
