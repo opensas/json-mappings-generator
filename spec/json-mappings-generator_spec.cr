@@ -155,7 +155,7 @@ describe Json::Mappings::Generator do
       },
       "work_address" : {
         "address": "Avey Road 4321",
-        "location": { "lat": 15.3, "lng": 14.5 }
+        "location": { "lng": 15.3, "lat": 14.5 }
       }
     }
     JSON

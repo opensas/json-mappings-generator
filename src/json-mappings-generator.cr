@@ -49,7 +49,7 @@ module JSON::Mappings
     def initialize(@json : String = "", @root_name = ROOT_NAME,
                    @template = CLASS_TEMPLATE, @prop_template = PROP_TEMPLATE,
                    @strict = true)
-      @types = {} of String => Array(Property)
+      @types = {} of String => Set(Property)
     end
 
     def from_json : String
@@ -71,9 +71,9 @@ module JSON::Mappings
       case json
       # Object: recursive call, add new Type to @types
       when Hash # Hash(String, JSON::Type)
-        props : Array(Property) = json.map { |key, value|
+        props : Set(Property) = json.map { |key, value|
           map_prop(value, key).as(Property)
-        }
+        }.to_set
 
         type_name = name.capitalize
 
@@ -116,12 +116,12 @@ module JSON::Mappings
       end
     end
 
-    def exists?(type : String, props : Array(Property)) : Bool
+    def exists?(type : String, props : Set(Property)) : Bool
       @types.has_key?(type) && @types[type] == props
     end
 
     # Returns the name of the first type with the same properties (matching name and type of each one)
-    def find_by_props?(props : Array(Property)) : String | Nil
+    def find_by_props?(props : Set(Property)) : String | Nil
       type = @types.find { |key, value|
         value == props
       }
