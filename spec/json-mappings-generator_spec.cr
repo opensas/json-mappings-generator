@@ -20,12 +20,7 @@
 require "./spec_helper"
 require "../src/json-mappings-generator"
 
-include JSON::Mappings
-
 describe Json::Mappings::Generator do
-
-  g = Generator.new
-
   it "should handle nested objects" do
     json = <<-JSON
     {
@@ -50,7 +45,7 @@ describe Json::Mappings::Generator do
     end
     mapping
 
-    g.generate(json).should eq(mapping)
+    JSON::Mappings.from_json(json).should eq(mapping)
   end
 
   it "should handle arrays of objects" do
@@ -78,7 +73,7 @@ describe Json::Mappings::Generator do
     end
     mapping
 
-    g.generate(json).should eq(mapping)
+    JSON::Mappings.from_json(json).should eq(mapping)
   end
 
   it "should handle empty arrays" do
@@ -93,12 +88,11 @@ describe Json::Mappings::Generator do
     class Root
       JSON.mapping(
         address: String,
-        names: Array(JSON::Type)
+        names: Array(JSON::Any)
       )
     end
     mapping
-    
-    g.generate(json).should eq(mapping)
-  end
 
+    JSON::Mappings.from_json(json).should eq(mapping)
+  end
 end

@@ -22,64 +22,58 @@ require "json"
 require "./json-mappings-generator/*"
 
 module JSON::Mappings
-
-  class Generator
-
-    property json, root_name, template
-    getter types
-
-    def initialize()
-      @json = ""
-      @types = [] of String
-      @root_name = "Root"
-      @template = <<-TEMPLATE
-        class %s
-          JSON.mapping(
-        %s
-          )
-        end
-
-
-        TEMPLATE
+  DEFAULT_ROOT_NAME = "Root"
+  DEFAULT_TEMPLATE  = <<-TEMPLATE
+    class %{class}
+      JSON.mapping(
+    %{props}
+      )
     end
 
-    def generate(json = "", root_name = "") : String
-      @json = json if !json.empty?
-      @root_name = root_name if !root_name.empty?
 
+    TEMPLATE
+
+  # Parses a JSON document as a `JSON::Any`.
+  def self.from_json(json = "", root_name = DEFAULT_ROOT_NAME, template = DEFAULT_TEMPLATE) : String
+    Generator.new(json, root_name, template).from_json
+  end
+
+  private class Generator
+    def initialize(@json : String = "", @root_name = DEFAULT_ROOT_NAME, @template = DEFAULT_TEMPLATE)
       @types = [] of String
+    end
 
-      parsed = JSON.parse(@json)
+    def from_json : String
+      parsed : JSON::Type = JSON.parse(@json).raw
       map_prop(parsed, @root_name)
-
       @types.join.rstrip
     end
 
-    def map_prop(json : JSON::Any, type_name : String) : String
+    def map_prop(json : JSON::Type, type_name : String) : String
+      case json
+      # Object: recursive call, add new Type to @types
+      when Hash # Hash(String, JSON::Type)
+        props : String = json.map { |key, value|
+          map_prop(value, key).as(String)
+        }.map { |x| "    " + x }.join(",\n")
 
-      # found an object (Hash), recursive call
-      if json.raw.is_a?(Hash)
+        new_type =
+          @template % {class: type_name.capitalize, props: props}
 
-        props : String = json.as_h.map {|k, v|
-          map_prop(json[k], k).as(String)
-        }.map {|x| "    " + x}.join(",\n")
-
-        new_type = @template % [type_name.capitalize, props]
         @types.push new_type
         type_name + ": " + type_name.capitalize
-
-      elsif json.raw.is_a?(Array)
+        # Array: process first element only (for now)
+      when Array # Array(JSON::Type)
         if json.size == 0
-          type_name + ": " + "Array(JSON::Type)"
+          type_name + ": " + "Array(JSON::Any)"
         else
-            prop = map_prop(json[0], type_name)
-            prop.sub(": ", ": Array(") + ")"
+          prop = map_prop(json[0], type_name)
+          prop.sub(": ", ": Array(") + ")"
         end
-
+        # Scalar type ( Bool | Float64 | Int64 | String | Nil)
       else
-        type_name + ": " + json.raw.class.to_s
+        type_name + ": " + json.class.to_s
       end
     end
   end
-
 end
