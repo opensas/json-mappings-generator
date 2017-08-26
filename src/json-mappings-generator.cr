@@ -116,26 +116,20 @@ module JSON::Mappings
       end
     end
 
-    def exists?(type : String, props : Set(Property)) : Bool
+    def exists?(type : String, props) : Bool
       @types.has_key?(type) && @types[type] == props
     end
 
     # Returns the name of the first type with the same properties (matching name and type of each one)
-    def find_by_props?(props : Set(Property)) : String | Nil
-      type = @types.find { |key, value|
-        value == props
-      }
+    def find_by_props?(props) : String | Nil
+      type = @types.find { |key, value| value == props }
       type ? type[0] : nil
     end
 
-    def rename_type(type_name) : String
+    def rename_type(type) : String
       # regexp to get the last numbers of the name
-      match = /(.*\D)(\d*)$/.match(type_name)
-      if match
-        match[1] + (("0" + match[2]).to_i + 1).to_s
-      else
-        type_name + "_"
-      end
+      match = /(.*\D)(\d*)$/.match(type)
+      match ? match[1] + (("0" + match[2]).to_i + 1).to_s : type + "_"
     end
   end
 end
