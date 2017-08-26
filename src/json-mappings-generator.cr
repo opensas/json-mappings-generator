@@ -91,7 +91,7 @@ module JSON::Mappings
         if @types.has_key?(type_name) && @types[type_name] != props
           new_type_name = rename_type(type_name)
           @types[new_type_name] = props
-          return {name: name, type: type_name}
+          return {name: name, type: new_type_name}
         end
 
         # create the new type
@@ -101,15 +101,17 @@ module JSON::Mappings
 
         {name: name, type: type_name}
 
-        # Array: process first element only (for now)
-      when Array          # Array(JSON::Type)
-        if json.size == 0 # Empty Array
-          {name: name, type: "Array(JSON::Any)"}
-        else
-          prop = map_prop(json[0], name)
-          # prop.sub(": ", ": Array(") + ")"
-          {name: prop[:name], type: "Array(#{prop[:type]})"}
-        end
+        # Array
+      when Array # Array(JSON::Type)
+        # collect the type of every element in the array
+        arr_types = json.map { |element|
+          map_prop(element, name)[:type]
+        }.to_set.join(" | ")
+        # no elements in the array
+        arr_types = "JSON::Any" if arr_types.empty?
+
+        {name: name, type: "Array(#{arr_types})"}
+
         # Scalar type ( Bool | Float64 | Int64 | String | Nil)
       else
         {name: name, type: json.class.to_s}

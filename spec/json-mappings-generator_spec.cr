@@ -53,7 +53,7 @@ describe Json::Mappings::Generator do
     {
       "locations": [
         { "lat": 12.3, "lng": 34.5 },
-        { "lat": 13, "lng": 35.6 }
+        { "lat": 13.5, "lng": 35.6 }
       ]
     }
     JSON
@@ -228,7 +228,7 @@ describe Json::Mappings::Generator do
     class Work_address
       JSON.mapping(
         address: String,
-        location: Location
+        location: Location1
       )
     end
 
@@ -237,6 +237,46 @@ describe Json::Mappings::Generator do
         name: String,
         home_address: Home_address,
         work_address: Work_address
+      )
+    end
+    mapping
+
+    JSON::Mappings.from_json(json).should eq(mapping)
+  end
+
+  it "should handle arrays with elements of different types in it" do
+    json = <<-JSON
+    {
+      "address": "Crystal Road 1234",
+      "data": [
+        1,
+        "some text",
+        [1, 2, 3],
+        { "lat": 12.3, "lng": 24.5 },
+        { "name": "John Ford", "relation": "owner" }
+      ]
+    }
+    JSON
+
+    mapping = <<-mapping
+    class Data
+      JSON.mapping(
+        lat: Float64,
+        lng: Float64
+      )
+    end
+
+    class Data1
+      JSON.mapping(
+        name: String,
+        relation: String
+      )
+    end
+
+    class Root
+      JSON.mapping(
+        address: String,
+        data: Array(Int64 | String | Array(Int64) | Data | Data1)
       )
     end
     mapping
