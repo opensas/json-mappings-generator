@@ -95,4 +95,152 @@ describe Json::Mappings::Generator do
 
     JSON::Mappings.from_json(json).should eq(mapping)
   end
+
+  it "should reuse type previously defined with the same name and props" do
+    json = <<-JSON
+    {
+      "name": "john",
+      "home_address" : {
+        "address": "Crystal Road 1234",
+        "location": { "lat": 12.3, "lng": 34.5 }
+      },
+      "work_address" : {
+        "address": "Avey Road 4321",
+        "location": { "lat": 15.3, "lng": 14.5 }
+      }
+    }
+    JSON
+
+    mapping = <<-mapping
+    class Location
+      JSON.mapping(
+        lat: Float64,
+        lng: Float64
+      )
+    end
+
+    class Home_address
+      JSON.mapping(
+        address: String,
+        location: Location
+      )
+    end
+
+    class Work_address
+      JSON.mapping(
+        address: String,
+        location: Location
+      )
+    end
+
+    class Root
+      JSON.mapping(
+        name: String,
+        home_address: Home_address,
+        work_address: Work_address
+      )
+    end
+    mapping
+
+    JSON::Mappings.from_json(json).should eq(mapping)
+  end
+
+  it "when strict = false it should reuse type previously defined the same name and props and different name" do
+    json = <<-JSON
+    {
+      "name": "john",
+      "home_address" : {
+        "address": "Crystal Road 1234",
+        "location": { "lat": 12.3, "lng": 34.5 }
+      },
+      "work_address" : {
+        "address": "Avey Road 4321",
+        "location": { "lat": 15.3, "lng": 14.5 }
+      }
+    }
+    JSON
+
+    mapping = <<-mapping
+    class Location
+      JSON.mapping(
+        lat: Float64,
+        lng: Float64
+      )
+    end
+
+    class Home_address
+      JSON.mapping(
+        address: String,
+        location: Location
+      )
+    end
+
+    class Root
+      JSON.mapping(
+        name: String,
+        home_address: Home_address,
+        work_address: Home_address
+      )
+    end
+    mapping
+
+    JSON::Mappings.from_json(json: json, strict: false).should eq(mapping)
+  end
+
+  it "should prevent types with different props and same name from colliding" do
+    json = <<-JSON
+    {
+      "name": "john",
+      "home_address" : {
+        "address": "Crystal Road 1234",
+        "location": { "lat": 12.3, "lng": 34.5 }
+      },
+      "work_address" : {
+        "address": "Avey Road 4321",
+        "location": { "latitude": 15.3, "longitude": 14.5, "error": "+-5km" }
+      }
+    }
+    JSON
+
+    mapping = <<-mapping
+    class Location
+      JSON.mapping(
+        lat: Float64,
+        lng: Float64
+      )
+    end
+
+    class Home_address
+      JSON.mapping(
+        address: String,
+        location: Location
+      )
+    end
+
+    class Location1
+      JSON.mapping(
+        latitude: Float64,
+        longitude: Float64,
+        error: String
+      )
+    end
+
+    class Work_address
+      JSON.mapping(
+        address: String,
+        location: Location
+      )
+    end
+
+    class Root
+      JSON.mapping(
+        name: String,
+        home_address: Home_address,
+        work_address: Work_address
+      )
+    end
+    mapping
+
+    JSON::Mappings.from_json(json).should eq(mapping)
+  end
 end

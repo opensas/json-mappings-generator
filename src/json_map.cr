@@ -19,10 +19,18 @@
 
 require "./json-mappings-generator"
 
-include JSON::Mappings
+json = <<-JSON
+{
+  "name": "john",
+  "home_address" : {
+    "address": "Crystal Road 1234",
+    "location": { "lat": 12.3, "lng": 34.5 }
+  },
+  "work_address" : {
+    "address": "Avey Road 4321",
+    "location": { "lat": 15.3, "lng": 14.5 }
+  }
+}
+JSON
 
-json = %({"location": {"lat": 12.3, "lng": 34.5}})
-
-g = Generator.new(json)
-
-puts g.generate
+puts JSON::Mappings.from_json(json)

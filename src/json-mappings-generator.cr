@@ -22,57 +22,119 @@ require "json"
 require "./json-mappings-generator/*"
 
 module JSON::Mappings
-  DEFAULT_ROOT_NAME = "Root"
-  DEFAULT_TEMPLATE  = <<-TEMPLATE
-    class %{class}
-      JSON.mapping(
-    %{props}
-      )
-    end
+  ROOT_NAME      = "Root"
+  CLASS_TEMPLATE = <<-TEMPLATE
+   class %{class}
+     JSON.mapping(
+   %{props}
+     )
+   end
 
 
-    TEMPLATE
+   TEMPLATE
+  PROP_TEMPLATE = <<-TEMPLATE
+       %{name}: %{type}
+   TEMPLATE
 
   # Parses a JSON document as a `JSON::Any`.
-  def self.from_json(json = "", root_name = DEFAULT_ROOT_NAME, template = DEFAULT_TEMPLATE) : String
-    Generator.new(json, root_name, template).from_json
+  def self.from_json(json = "", root_name = ROOT_NAME,
+                     template = CLASS_TEMPLATE, prop_template = PROP_TEMPLATE,
+                     strict = true) : String
+    Generator.new(json, root_name, template, prop_template, strict).from_json
   end
 
   private class Generator
-    def initialize(@json : String = "", @root_name = DEFAULT_ROOT_NAME, @template = DEFAULT_TEMPLATE)
-      @types = [] of String
+    alias Property = {name: String, type: String}
+
+    def initialize(@json : String = "", @root_name = ROOT_NAME,
+                   @template = CLASS_TEMPLATE, @prop_template = PROP_TEMPLATE,
+                   @strict = true)
+      @types = {} of String => Array(Property)
     end
 
     def from_json : String
       parsed : JSON::Type = JSON.parse(@json).raw
       map_prop(parsed, @root_name)
-      @types.join.rstrip
+      from_types(@types)
     end
 
-    def map_prop(json : JSON::Type, type_name : String) : String
+    def from_types(types) : String
+      types.map { |type, props_defs|
+        props = props_defs.map { |prop|
+          @prop_template % prop
+        }.join(",\n")
+        @template % {class: type, props: props}
+      }.join.rstrip
+    end
+
+    def map_prop(json : JSON::Type, name : String) : Property
       case json
       # Object: recursive call, add new Type to @types
       when Hash # Hash(String, JSON::Type)
-        props : String = json.map { |key, value|
-          map_prop(value, key).as(String)
-        }.map { |x| "    " + x }.join(",\n")
+        props : Array(Property) = json.map { |key, value|
+          map_prop(value, key).as(Property)
+        }
 
-        new_type =
-          @template % {class: type_name.capitalize, props: props}
+        type_name = name.capitalize
 
-        @types.push new_type
-        type_name + ": " + type_name.capitalize
+        # the type already exists, do not create it again
+        if exists?(type_name, props)
+          return {name: name, type: type_name}
+        end
+
+        # if not strict mode try to reuse a type with the same props
+        if !@strict && (prev_type = find_by_props?(props))
+          return {name: name, type: prev_type}
+        end
+
+        # already exists a type with the same name but different props
+        if @types.has_key?(type_name) && @types[type_name] != props
+          new_type_name = rename_type(type_name)
+          @types[new_type_name] = props
+          return {name: name, type: type_name}
+        end
+
+        # create the new type
+        if !@types.has_key?(type_name)
+          @types[type_name] = props
+        end
+
+        {name: name, type: type_name}
+
         # Array: process first element only (for now)
-      when Array # Array(JSON::Type)
-        if json.size == 0
-          type_name + ": " + "Array(JSON::Any)"
+      when Array          # Array(JSON::Type)
+        if json.size == 0 # Empty Array
+          {name: name, type: "Array(JSON::Any)"}
         else
-          prop = map_prop(json[0], type_name)
-          prop.sub(": ", ": Array(") + ")"
+          prop = map_prop(json[0], name)
+          # prop.sub(": ", ": Array(") + ")"
+          {name: prop[:name], type: "Array(#{prop[:type]})"}
         end
         # Scalar type ( Bool | Float64 | Int64 | String | Nil)
       else
-        type_name + ": " + json.class.to_s
+        {name: name, type: json.class.to_s}
+      end
+    end
+
+    def exists?(type : String, props : Array(Property)) : Bool
+      @types.has_key?(type) && @types[type] == props
+    end
+
+    # Returns the name of the first type with the same properties (matching name and type of each one)
+    def find_by_props?(props : Array(Property)) : String | Nil
+      type = @types.find { |key, value|
+        value == props
+      }
+      type ? type[0] : nil
+    end
+
+    def rename_type(type_name) : String
+      # regexp to get the last numbers of the name
+      match = /(.*\D)(\d*)$/.match(type_name)
+      if match
+        match[1] + (("0" + match[2]).to_i + 1).to_s
+      else
+        type_name + "_"
       end
     end
   end
