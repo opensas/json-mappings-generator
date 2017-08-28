@@ -75,47 +75,51 @@ module JSON::Mappings
           map_prop(value, key).as(Property)
         }.to_set
 
-        type_name = name.capitalize
-
-        # the type already exists, do not create it again
-        if exists?(type_name, props)
-          return {name: name, type: type_name}
-        end
-
-        # if not strict mode try to reuse a type with the same props
-        if !@strict && (prev_type = find_by_props?(props))
-          return {name: name, type: prev_type}
-        end
-
-        # already exists a type with the same name but different props
-        if @types.has_key?(type_name) && @types[type_name] != props
-          new_type_name = rename_type(type_name)
-          @types[new_type_name] = props
-          return {name: name, type: new_type_name}
-        end
-
-        # create the new type
-        if !@types.has_key?(type_name)
-          @types[type_name] = props
-        end
+        type_name = save_new_type(name, props)
 
         {name: name, type: type_name}
 
-        # Array
+        # Array: recursive call, collect types
       when Array # Array(JSON::Type)
         # collect the type of every element in the array
         arr_types = json.map { |element|
-          map_prop(element, name)[:type]
+          (map_prop(element, name)[:type]).as(String)
         }.to_set.join(" | ")
         # no elements in the array
         arr_types = "JSON::Any" if arr_types.empty?
 
         {name: name, type: "Array(#{arr_types})"}
 
-        # Scalar type ( Bool | Float64 | Int64 | String | Nil)
-      else
+        # Scalar type: simple case, non recursive
+      else # Scalar type ( Bool | Float64 | Int64 | String | Nil)
         {name: name, type: json.class.to_s}
       end
+    end
+
+    def save_new_type(type_name : String, props : Set(Property)) : String
+      type_name = type_name.capitalize
+
+      # the type already exists, do not create it again
+      return type_name if exists?(type_name, props)
+
+      # if not strict mode try to reuse a type with the same props
+      if !@strict && (prev_type = find_by_props?(props))
+        return prev_type
+      end
+
+      # already exists a type with the same name but different props
+      if @types.has_key?(type_name) && @types[type_name] != props
+        new_type_name = rename_type(type_name)
+        @types[new_type_name] = props # create the new type
+        return new_type_name
+      end
+
+      # create the new type
+      if !@types.has_key?(type_name)
+        @types[type_name] = props
+      end
+
+      return type_name
     end
 
     def exists?(type : String, props) : Bool
