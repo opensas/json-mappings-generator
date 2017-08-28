@@ -53,7 +53,7 @@ module JSON::Mappings
     end
 
     def from_json : String
-      parsed : JSON::Type = JSON.parse(@json).raw
+      parsed : JSON::Type = JSON.parse_raw(@json)
       map_prop(parsed, @root_name)
       from_types(@types)
     end

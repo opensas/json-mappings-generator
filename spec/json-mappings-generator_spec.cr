@@ -20,7 +20,7 @@
 require "./spec_helper"
 require "../src/json-mappings-generator"
 
-describe Json::Mappings::Generator do
+describe "JSON::Mappings.from_json" do
   it "should handle nested objects" do
     json = <<-JSON
     {
