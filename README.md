@@ -1,6 +1,6 @@
 # json-mappings-generator
 
-Utility library to automatically generate the source of JSON-mapped clases to populate objects from a json string.
+Utility library to automatically generate the source of JSON-mapped classes to populate objects from a json string.
 
 ## Installation
 
